@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aggies Pitch Charting App v7</title>
+<style>
+  :root {
+    --navy: #003087;
+    --gold: #f2a900;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #17202a;
+    --muted: #6b7280;
+    --border: #d9dde5;
+    --good: #0f7b3f;
+    --bad: #b42318;
+    --warn: #b76e00;
+    --dark: #111827;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--navy); color: white; padding: 14px 18px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .3px; }
+  header span { color: var(--gold); font-weight: 700; }
+  .container { padding: 14px; max-width: 1360px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: 0 1px 5px rgba(0,0,0,.05); }
+  .card h2 { margin: 0 0 10px; font-size: 18px; color: var(--navy); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  label { font-size: 12px; color: var(--muted); display:block; margin-bottom: 3px; font-weight: 700; text-transform: uppercase; }
+  input, select { border: 1px solid var(--border); border-radius: 8px; padding: 9px; min-height: 38px; background:white; font-size:14px; }
+  .field { min-width: 120px; }
+  button { border: 0; border-radius: 10px; padding: 12px 14px; cursor: pointer; font-weight: 800; font-size: 14px; background: #e9edf5; color: var(--text); }
+  button:hover { filter: brightness(.97); }
+  button.active { outline: 3px solid var(--gold); background: #fff3cd; }
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-gold { background: var(--gold); color: #111; }
+  .btn-good { background: var(--good); color: white; }
+  .btn-bad { background: var(--bad); color: white; }
+  .btn-warn { background: var(--warn); color: white; }
+  .btn-dark { background: var(--dark); color: white; }
+  .btn-small { padding: 8px 10px; font-size: 12px; border-radius: 8px; }
+  .button-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+  .button-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .button-grid.two { grid-template-columns: repeat(2, 1fr); }
+  .button-grid.five { grid-template-columns: repeat(5, 1fr); }
+  .state { display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+  .state-box { background:#f7f9fc; border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center; }
+  .state-box .big { font-size:26px; font-weight:900; color:var(--navy); }
+  .state-box .small { font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .kpi-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+  .kpi { background:#f7f9fc; border:1px solid var(--border); border-radius:12px; padding:10px; min-height:72px; }
+  .kpi .name { font-size:11px; color:var(--muted); font-weight:800; text-transform:uppercase; }
+  .kpi .value { font-size:24px; font-weight:900; margin-top:6px; }
+  .kpi .goal { font-size:11px; color:var(--muted); }
+  table { width:100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border-bottom:1px solid var(--border); padding:7px; text-align:left; white-space:nowrap; }
+  th { color:var(--navy); background:#f2f5fa; position:sticky; top:0; }
+  .table-wrap { max-height: 300px; overflow:auto; border:1px solid var(--border); border-radius:10px; }
+  .bases { display:flex; align-items:center; gap:8px; }
+  .base { width:32px; height:32px; transform: rotate(45deg); border:2px solid var(--navy); background:white; display:inline-block; }
+  .base.on { background: var(--gold); }
+  .base-label { transform: rotate(-45deg); display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:10px; font-weight:900; }
+  .note { color:var(--muted); font-size:12px; line-height:1.35; }
+  .section-title { margin-top:12px; margin-bottom:7px; font-weight:900; color:#111827; }
+  .hidden { display:none !important; }
+  .workflow-box { border: 2px solid var(--gold); background:#fffdf2; border-radius:12px; padding:10px; margin-top:12px; }
+  .danger-zone { border:1px solid #ffd1d1; background:#fff7f7; border-radius:12px; padding:10px; }
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .state { grid-template-columns: repeat(2, 1fr); }
+    .button-grid, .button-grid.five { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Aggies</span> Pitch Charting App <span style="font-size:14px;color:white">v7 Production</span></h1>
+  <div class="row" style="margin:0">
+    <button class="btn-good btn-small" onclick="saveGameToGoogleSheets()">Save Game to Google Sheets</button>
+    <button class="btn-gold btn-small" onclick="exportGameReport()">Export Game Report CSV</button>
+    <button class="btn-bad btn-small" onclick="resetGame()">Reset Game</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <section class="card">
+      <h2>Live Charting</h2>
+
+      <div class="row">
+        <div class="field"><label>Date</label><input id="date" type="date"></div>
+        <div class="field"><label>Game Type</label><select id="gameType"><option>Fall Intersquad</option><option>Spring Game</option><option>Scrimmage</option><option>Regular Season</option></select></div>
+        <div class="field"><label>Pitcher</label><select id="pitcher" onchange="syncDashboardFilterPitcher()"></select></div>
+        <div class="field"><label>Batter</label><select id="batter"></select></div>
+        <div class="field"><label>Batter Hand</label><select id="batterHand"><option value="">--</option><option>RHH</option><option>LHH</option><option>SH</option></select></div>
+        <div class="field"><label>Inning</label><input id="inning" type="number" value="1" min="1"></div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="min-width:185px"><label>Pitch Call / Intent</label>
+          <select id="pitchCall">
+            <option value="">-- Optional --</option>
+            <option>FB Away</option><option>FB In</option><option>FB Up</option><option>FB Down</option>
+            <option>SNK Arm Side</option><option>SNK Glove Side</option><option>SNK Down</option>
+            <option>SL Glove Side</option><option>SL Back Foot</option><option>SL Chase</option>
+            <option>CB Strike</option><option>CB Chase</option>
+            <option>CH Down</option><option>CH Arm Side</option><option>CH Chase</option>
+            <option>CT In</option><option>CT Away</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Executed?</label>
+          <select id="executed">
+            <option value="">--</option>
+            <option>Y</option>
+            <option>N</option>
+          </select>
+        </div>
+        <button class="btn-small" onclick="clearPitchIntent()">Clear Intent</button>
+        <span class="note">Optional coach layer: use pitch call and execution when you have time, skip when charting fast.</span>
+      </div>
+
+      <div class="row">
+        <div class="field"><label>Add Pitcher</label><input id="newPitcher" placeholder="Name"></div>
+        <button class="btn-small btn-navy" onclick="addRosterName('pitchers')">Add Pitcher</button>
+        <div class="field"><label>Add Batter</label><input id="newBatter" placeholder="# or name"></div>
+        <button class="btn-small btn-navy" onclick="addRosterName('batters')">Add Batter</button>
+        <div class="field"><label>Dashboard View</label><select id="dashboardFilter" onchange="updateUI()"><option value="ALL">Team / All Pitchers</option></select></div>
+      </div>
+
+      <div class="state">
+        <div class="state-box"><div class="small">Count</div><div class="big" id="countBox">0-0</div></div>
+        <div class="state-box"><div class="small">Outs</div><div class="big" id="outsBox">0</div></div>
+        <div class="state-box"><div class="small">Pitch # PA</div><div class="big" id="pitchNoBox">0</div></div>
+        <div class="state-box"><div class="small">Current PA</div><div class="big" id="paBox">1</div></div>
+      </div>
+
+      <div class="row bases">
+        <strong>Base state:</strong>
+        <button class="btn-small" onclick="toggleBase('first')"><span class="base" id="baseFirst"><span class="base-label">1B</span></span></button>
+        <button class="btn-small" onclick="toggleBase('second')"><span class="base" id="baseSecond"><span class="base-label">2B</span></span></button>
+        <button class="btn-small" onclick="toggleBase('third')"><span class="base" id="baseThird"><span class="base-label">3B</span></span></button>
+        <button class="btn-small" onclick="clearBases()">Clear bases</button>
+        <button class="btn-small" onclick="setOuts(0)">0 Outs</button>
+        <button class="btn-small" onclick="setOuts(1)">1 Out</button>
+        <button class="btn-small" onclick="setOuts(2)">2 Outs</button>
+      </div>
+
+      <div class="row">
+        <label style="margin-right:8px"><input type="checkbox" id="inherited"> Inherited runner situation</label>
+        <label style="margin-right:8px"><input type="checkbox" id="shutdownOpp"> Shutdown inning opportunity</label>
+      </div>
+
+      <div class="section-title">1) Pitch type</div>
+      <div class="button-grid five" id="pitchTypeButtons">
+        <button onclick="setPitchType('FB', this)">FB</button>
+        <button onclick="setPitchType('SNK', this)">SNK</button>
+        <button onclick="setPitchType('SL', this)">SL</button>
+        <button onclick="setPitchType('CB', this)">CB</button>
+        <button onclick="setPitchType('CH', this)">CH</button>
+        <button onclick="setPitchType('CT', this)">CT</button>
+        <button onclick="setPitchType('SPL', this)">SPL</button>
+        <button onclick="setPitchType('Other', this)">Other</button>
+        <button class="btn-navy" id="selectedPitch" disabled>Selected: --</button>
+      </div>
+
+      <div class="section-title">2) Pitch result</div>
+      <div class="button-grid">
+        <button class="btn-good" onclick="recordPitch('Called Strike')">Called Strike</button>
+        <button class="btn-good" onclick="recordPitch('Swinging Strike')">Swing/Miss</button>
+        <button class="btn-good" onclick="recordPitch('Foul')">Foul</button>
+        <button class="btn-bad" onclick="recordPitch('Ball')">Ball</button>
+        <button class="btn-bad" onclick="recordPitch('HBP')">HBP</button>
+        <button class="btn-warn" onclick="recordPitch('BIP')">Ball In Play</button>
+        <button onclick="recordPitch('Pickoff/Other')">Pickoff/Other</button>
+        <button class="btn-navy" onclick="undoLastPitch()">Undo Pitch</button>
+      </div>
+
+      <div id="bipPanel" class="workflow-box hidden">
+        <h2 style="margin-bottom:8px">BIP Tagging</h2>
+        <div class="section-title">3) BIP type</div>
+        <div class="button-grid four" id="contactTypeButtons">
+          <button onclick="setContactType('GB', this)">GB</button>
+          <button onclick="setContactType('LD', this)">LD</button>
+          <button onclick="setContactType('FB', this)">FB</button>
+          <button onclick="setContactType('PU', this)">PU</button>
+        </div>
+
+        <div class="section-title">4) BIP result</div>
+        <div class="button-grid">
+          <button class="btn-good" onclick="setBipResult('Ground Out', this)">Ground Out</button>
+          <button class="btn-good" onclick="setBipResult('Fly Out', this)">Fly Out</button>
+          <button class="btn-good" onclick="setBipResult('Line Out', this)">Line Out</button>
+          <button class="btn-good" onclick="setBipResult('Pop Out', this)">Pop Out</button>
+          <button class="btn-good" onclick="setBipResult('Double Play', this)">Double Play</button>
+          <button onclick="setBipResult('Fielder Choice', this)">Fielder's Choice</button>
+          <button class="btn-bad" onclick="setBipResult('Single', this)">Single</button>
+          <button class="btn-bad" onclick="setBipResult('Double', this)">Double</button>
+          <button class="btn-bad" onclick="setBipResult('Triple', this)">Triple</button>
+          <button class="btn-bad" onclick="setBipResult('Home Run', this)">Home Run</button>
+          <button class="btn-bad" onclick="setBipResult('ROE/Error', this)">ROE/Error</button>
+        </div>
+
+        <div class="section-title">5) Contact quality</div>
+        <div class="button-grid three" id="contactQualityButtons">
+          <button class="btn-good" onclick="setContactQuality('Weak', this)">Weak</button>
+          <button onclick="setContactQuality('Average', this)">Average</button>
+          <button class="btn-bad" onclick="setContactQuality('Hard', this)">Hard</button>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <div class="field"><label>Runs scored</label><input id="bipRunsScored" type="number" min="0" value="0"></div>
+          <div class="field"><label>Inherited scored</label><input id="bipInheritedScored" type="number" min="0" value="0"></div>
+          <label><input type="checkbox" id="bipInningEnded"> Inning ended after this PA</label>
+          <button class="btn-navy" onclick="completeBipPA()">Complete BIP PA</button>
+          <button onclick="cancelBipTag()">Cancel BIP Tag</button>
+        </div>
+        <p class="note">On balls in play, choose BIP type, BIP result, contact quality, then complete the PA. The app will log the plate appearance and reset to the next hitter.</p>
+      </div>
+
+      <div id="nonBipPanel">
+        <div class="section-title">3) End non-BIP plate appearance</div>
+        <div class="button-grid three">
+          <button class="btn-good" onclick="endPA('K')">K</button>
+          <button class="btn-bad" onclick="endPA('BB')">BB</button>
+          <button class="btn-bad" onclick="endPA('HBP')">HBP</button>
+          <button onclick="endPA('Other Out')">Other Out</button>
+          <button onclick="endPA('Other Reach')">Other Reach</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label>Runs scored on PA</label><input id="runsScored" type="number" min="0" value="0"></div>
+          <div class="field"><label>Inherited scored</label><input id="inheritedScored" type="number" min="0" value="0"></div>
+          <label><input type="checkbox" id="inningEnded"> Inning ended after this PA</label>
+        </div>
+      </div>
+
+      <p class="note">V7 workflow: chart only the pitch, then tag BIP details only when a ball is put in play. Early, ahead, lost count, secondary strike %, contact profile, and strand numbers calculate automatically.</p>
+    </section>
+
+    <section class="card">
+      <h2>Live KPI Dashboard</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="name">Early %</div><div class="value" id="kEarly">--</div><div class="goal">Goal: 40-50%</div></div>
+        <div class="kpi"><div class="name">Ahead %</div><div class="value" id="kAhead">--</div><div class="goal">Goal: 30-40%</div></div>
+        <div class="kpi"><div class="name">Early + Ahead</div><div class="value" id="kCombo">--</div><div class="goal">Goal: 70%</div></div>
+        <div class="kpi"><div class="name">Retention %</div><div class="value" id="kRetention">--</div><div class="goal">Goal: 80%+</div></div>
+        <div class="kpi"><div class="name">Sec Strike %</div><div class="value" id="kSec">--</div><div class="goal">Goal: 60%</div></div>
+        <div class="kpi"><div class="name">Lost Count %</div><div class="value" id="kLost">--</div><div class="goal">Goal: &lt;20%</div></div>
+        <div class="kpi"><div class="name">2-Out Strand %</div><div class="value" id="kStrand2">--</div><div class="goal">Goal: 85%</div></div>
+        <div class="kpi"><div class="name">Shutdown %</div><div class="value" id="kShutdown">--</div><div class="goal">Goal: 70%</div></div>
+        <div class="kpi"><div class="name">K %</div><div class="value" id="kK">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">BB/HBP %</div><div class="value" id="kBB">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">GB %</div><div class="value" id="kGB">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">Hard Contact %</div><div class="value" id="kHard">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">First Pitch Strike %</div><div class="value" id="kFPS">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">CSW %</div><div class="value" id="kCSW">--</div><div class="goal">Called strikes + whiffs</div></div>
+        <div class="kpi"><div class="name">Whiff %</div><div class="value" id="kWhiff">--</div><div class="goal">Coach only</div></div>
+        <div class="kpi"><div class="name">Most Used Pitch</div><div class="value" id="kUsage" style="font-size:19px">--</div><div class="goal">Usage leader</div></div>
+        <div class="kpi"><div class="name">Execution %</div><div class="value" id="kExec">--</div><div class="goal">Optional charting</div></div>
+        <div class="kpi"><div class="name">vs RHH PA</div><div class="value" id="kRHH">--</div><div class="goal">Split count</div></div>
+        <div class="kpi"><div class="name">vs LHH PA</div><div class="value" id="kLHH">--</div><div class="goal">Split count</div></div>
+      </div>
+
+      <h2 style="margin-top:18px">Plate Appearance Log</h2>
+      <div class="table-wrap">
+        <table id="paTable">
+          <thead><tr><th>PA</th><th>Pitcher</th><th>Batter</th><th>Hand</th><th>Outs</th><th>Base</th><th>Result</th><th>BIP Type</th><th>BIP Result</th><th>Quality</th><th>Call</th><th>Exec</th><th>Early</th><th>Ahead</th><th>Lost 3-2</th><th>Sec</th><th>2O RISP</th><th>2O Stranded</th><th>Runs</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2 style="margin-top:18px">Pitcher Cards</h2>
+      <div class="table-wrap">
+        <table id="pitcherCardTable">
+          <thead><tr><th>Pitcher</th><th>PA</th><th>Early</th><th>Ahead</th><th>Retention</th><th>Sec Strike</th><th>GB</th><th>Hard</th><th>K</th><th>BB/HBP</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2 style="margin-top:18px">Pitch Usage by Pitcher</h2>
+      <div class="table-wrap">
+        <table id="usageTable">
+          <thead><tr><th>Pitcher</th><th>FB</th><th>SNK</th><th>SL</th><th>CB</th><th>CH</th><th>CT</th><th>SPL</th><th>Other</th><th>Total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Pitch Log</h2>
+    <div class="table-wrap">
+      <table id="pitchTable">
+        <thead><tr><th>#</th><th>PA</th><th>Pitcher</th><th>Batter</th><th>Pitch</th><th>Call</th><th>Exec</th><th>Result</th><th>Pre-count</th><th>Post-count</th><th>Secondary?</th><th>Strike?</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+let balls=0, strikes=0, outs=0, paNo=1, selectedPitchType='', selectedContactType='', selectedContactQuality='', selectedBipResult='', pitchNoPA=0, bipMode=false;
+let bases={first:false, second:false, third:false};
+let currentPitches=[];
+let pitchLog=[];
+let paLog=[];
+let roster = JSON.parse(localStorage.getItem('aggiesPitchChartRosterV4') || '{"pitchers":["Unknown"],"batters":["Unknown"]}');
+
+document.getElementById('date').valueAsDate = new Date();
+
+function saveRoster(){ localStorage.setItem('aggiesPitchChartRosterV4', JSON.stringify(roster)); }
+function fillSelect(id, arr, extraAll=false){
+  const el=document.getElementById(id); const current=el.value; el.innerHTML='';
+  if(extraAll){ const opt=document.createElement('option'); opt.value='ALL'; opt.textContent='Team / All Pitchers'; el.appendChild(opt); }
+  arr.forEach(name=>{ const opt=document.createElement('option'); opt.value=name; opt.textContent=name; el.appendChild(opt); });
+  if([...el.options].some(o=>o.value===current)) el.value=current;
+}
+function refreshRosterUI(){
+  roster.pitchers=[...new Set(roster.pitchers.filter(Boolean))].sort();
+  roster.batters=[...new Set(roster.batters.filter(Boolean))].sort();
+  if(!roster.pitchers.length) roster.pitchers=['Unknown'];
+  if(!roster.batters.length) roster.batters=['Unknown'];
+  fillSelect('pitcher', roster.pitchers); fillSelect('batter', roster.batters); fillSelect('dashboardFilter', roster.pitchers, true);
+}
+function addRosterName(kind){
+  const inputId=kind==='pitchers'?'newPitcher':'newBatter';
+  const selectId=kind==='pitchers'?'pitcher':'batter';
+  const val=document.getElementById(inputId).value.trim(); if(!val) return;
+  if(!roster[kind].includes(val)) roster[kind].push(val);
+  saveRoster(); refreshRosterUI(); document.getElementById(selectId).value=val; document.getElementById(inputId).value=''; updateUI();
+}
+function syncDashboardFilterPitcher(){ updateUI(); }
+refreshRosterUI();
+
+function activeButton(parentId, clicked){
+  document.querySelectorAll('#'+parentId+' button').forEach(b=>b.classList.remove('active'));
+  if(clicked) clicked.classList.add('active');
+}
+function setPitchType(t, btn){ selectedPitchType=t; document.getElementById('selectedPitch').innerText='Selected: '+t; activeButton('pitchTypeButtons', btn); }
+function setContactType(t, btn){ selectedContactType=t; activeButton('contactTypeButtons', btn); }
+function setContactQuality(q, btn){ selectedContactQuality=q; activeButton('contactQualityButtons', btn); }
+function setBipResult(r, btn){ selectedBipResult=r; document.querySelectorAll('#bipPanel button').forEach(b=>{ if(['Ground Out','Fly Out','Line Out','Pop Out','Double Play',"Fielder's Choice",'Single','Double','Triple','Home Run','ROE/Error'].includes(b.innerText)) b.classList.remove('active'); }); if(btn) btn.classList.add('active'); }
+function clearContact(){
+  selectedContactType=''; selectedContactQuality=''; selectedBipResult='';
+  document.querySelectorAll('#contactTypeButtons button,#contactQualityButtons button,#bipPanel button').forEach(b=>b.classList.remove('active'));
+}
+function isSecondary(t){ return !['FB','SNK','CT'].includes(t); }
+function isStrikeResult(r){ return ['Called Strike','Swinging Strike','Foul','BIP'].includes(r); }
+function preBaseState(){ return (bases.first?'1':'-') + (bases.second?'2':'-') + (bases.third?'3':'-'); }
+function hasRISP(){ return bases.second || bases.third; }
+function rispRunners(){ return (bases.second?1:0)+(bases.third?1:0); }
+function countText(){ return balls+'-'+strikes; }
+function setOuts(n){ outs=n; updateUI(); }
+function toggleBase(b){ bases[b]=!bases[b]; updateUI(); }
+function clearBases(){ bases={first:false,second:false,third:false}; updateUI(); }
+function clearPitchIntent(){ document.getElementById('pitchCall').value=''; document.getElementById('executed').value=''; }
+
+function updateUI(){
+  document.getElementById('countBox').innerText=countText();
+  document.getElementById('outsBox').innerText=outs;
+  document.getElementById('pitchNoBox').innerText=pitchNoPA;
+  document.getElementById('paBox').innerText=paNo;
+  document.getElementById('baseFirst').classList.toggle('on', bases.first);
+  document.getElementById('baseSecond').classList.toggle('on', bases.second);
+  document.getElementById('baseThird').classList.toggle('on', bases.third);
+  document.getElementById('bipPanel').classList.toggle('hidden', !bipMode);
+  updateTables(); updateKPIs(); updatePitcherCards();
+}
+
+function recordPitch(result){
+  if(!selectedPitchType){ alert('Select a pitch type first.'); return; }
+  if(bipMode){ alert('Finish or cancel the current BIP tag first.'); return; }
+  const pre=countText();
+  const pitcher=document.getElementById('pitcher').value || 'Unknown';
+  const batter=document.getElementById('batter').value || 'Unknown';
+  const batterHand=document.getElementById('batterHand') ? document.getElementById('batterHand').value : '';
+  const pitchCall=document.getElementById('pitchCall') ? document.getElementById('pitchCall').value : '';
+  const executed=document.getElementById('executed') ? document.getElementById('executed').value : '';
+  let postBalls=balls, postStrikes=strikes;
+  if(result==='Ball') postBalls=Math.min(4, balls+1);
+  if(['Called Strike','Swinging Strike'].includes(result)) postStrikes=Math.min(3, strikes+1);
+  if(result==='Foul' && strikes<2) postStrikes=Math.min(2, strikes+1);
+  if(result==='HBP') postBalls=balls;
+
+  pitchNoPA++;
+  const pitch={
+    rowType:'PITCH', pitchIndex:pitchLog.length+1, paNo, pitcher, batter, inning:document.getElementById('inning').value,
+    pitchNoPA, pitchType:selectedPitchType, pitchCall, executed, batterHand, result, preCount:pre,
+    postCount:postBalls+'-'+postStrikes, secondary:isSecondary(selectedPitchType), strike:isStrikeResult(result),
+    date:document.getElementById('date').value, gameType:document.getElementById('gameType').value
+  };
+  pitchLog.push(pitch); currentPitches.push(pitch);
+  balls=postBalls; strikes=postStrikes;
+
+  if(result==='BIP'){
+    bipMode=true;
+    clearContact();
+  } else {
+    if(result==='Ball' && balls>=4) alert('Count is 4 balls. Tap BB to end PA.');
+    if(['Called Strike','Swinging Strike'].includes(result) && strikes>=3) alert('Strike 3. Tap K to end PA.');
+    if(result==='HBP') alert('HBP. Tap HBP to end PA.');
+  }
+  updateUI();
+}
+function undoLastPitch(){
+  if(bipMode){ bipMode=false; clearContact(); }
+  const last=currentPitches.pop(); if(!last) return;
+  pitchLog.pop();
+  const pre=last.preCount.split('-'); balls=parseInt(pre[0]); strikes=parseInt(pre[1]); pitchNoPA=Math.max(0,pitchNoPA-1);
+  updateUI();
+}
+function cancelBipTag(){ bipMode=false; clearContact(); updateUI(); }
+
+function outCountForResult(result){
+  if(['K','Other Out','Ground Out','Fly Out','Line Out','Pop Out'].includes(result)) return 1;
+  if(result==='Double Play') return 2;
+  return 0;
+}
+function isOutResult(result){ return outCountForResult(result)>0; }
+function isHitResult(result){ return ['Single','Double','Triple','Home Run'].includes(result); }
+function isReachResult(result){ return ['BB','HBP','Other Reach','Fielder Choice','ROE/Error'].includes(result) || isHitResult(result); }
+
+function completeBipPA(){
+  if(!selectedContactType){ alert('Select BIP type.'); return; }
+  if(!selectedBipResult){ alert('Select BIP result.'); return; }
+  if(!selectedContactQuality){ alert('Select contact quality.'); return; }
+  document.getElementById('runsScored').value = document.getElementById('bipRunsScored').value || 0;
+  document.getElementById('inheritedScored').value = document.getElementById('bipInheritedScored').value || 0;
+  document.getElementById('inningEnded').checked = document.getElementById('bipInningEnded').checked;
+  endPA(selectedBipResult, true);
+}
+
+function endPA(result, fromBip=false){
+  const pitcher=document.getElementById('pitcher').value || 'Unknown';
+  const batter=document.getElementById('batter').value || 'Unknown';
+  const batterHand=document.getElementById('batterHand') ? document.getElementById('batterHand').value : '';
+  const startOuts=outs;
+  const startBase=preBaseState();
+  const startRisp=hasRISP();
+  const startRispRunners=rispRunners();
+
+  const reached02=currentPitches.some(p => p.postCount==='0-2');
+  const reached12=currentPitches.some(p => p.postCount==='1-2');
+  const reachedLeverage=reached02 || reached12;
+  const lost32=reachedLeverage && currentPitches.some(p => p.postCount==='3-2');
+
+  const endedByPitch3=currentPitches.length>0 && currentPitches.length<=3 && !['BB','HBP'].includes(result);
+  const saw20=currentPitches.some(p => p.preCount==='2-0' || p.postCount==='2-0');
+  const early = endedByPitch3 && !saw20;
+  const ahead = reached02 || reached12;
+
+  const secTotal=currentPitches.filter(p=>p.secondary).length;
+  const secStr=currentPitches.filter(p=>p.secondary && p.strike).length;
+
+  const runs=parseInt(document.getElementById('runsScored').value || '0');
+  const inherited=document.getElementById('inherited').checked;
+  const inheritedScored=parseInt(document.getElementById('inheritedScored').value || '0');
+  const inningEndedManual=document.getElementById('inningEnded').checked;
+
+  const outsOnPA=outCountForResult(result);
+  const inningEndedAuto=(startOuts + outsOnPA) >= 3;
+  const inningEnded=inningEndedManual || inningEndedAuto;
+
+  const shutdownOpp=document.getElementById('shutdownOpp').checked;
+  const shutdownSuccess=shutdownOpp && inningEnded && runs===0;
+
+  const contactType=fromBip ? selectedContactType : '';
+  const contactQuality=fromBip ? selectedContactQuality : '';
+  const bipResult=fromBip ? selectedBipResult : '';
+  const isContactPA=fromBip;
+
+  const execCharted=currentPitches.filter(p=>p.executed==='Y'||p.executed==='N').length;
+  const execYes=currentPitches.filter(p=>p.executed==='Y').length;
+  const pitchCalls=[...new Set(currentPitches.map(p=>p.pitchCall).filter(Boolean))].join(' | ');
+
+  const twoOutRispOpp=startOuts===2 ? startRispRunners : 0;
+  const twoOutRispStranded=(twoOutRispOpp>0 && inningEnded) ? Math.max(0, twoOutRispOpp-runs) : 0;
+  const twoOutStrandOpp=twoOutRispOpp>0;
+  const twoOutStrandSuccess=twoOutStrandOpp && inningEnded && twoOutRispStranded===twoOutRispOpp;
+
+  paLog.push({
+    rowType:'PA', paNo, date:document.getElementById('date').value, gameType:document.getElementById('gameType').value,
+    pitcher,batter,batterHand,inning:document.getElementById('inning').value,startOuts,startBase,result,bipResult,contactType,contactQuality,isContactPA,pitchCalls,execYes,execCharted,
+    pitches:currentPitches.length, early,ahead,reached02,reached12,reachedLeverage,lost32,
+    secStr,secTotal,risp:startRisp,rispRunners:startRispRunners,twoOutRispOpp,twoOutRispStranded,twoOutStrandOpp,twoOutStrandSuccess,
+    runs,inherited,inheritedScored,shutdownOpp,shutdownSuccess
+  });
+
+  outs = Math.min(3, startOuts + outsOnPA);
+
+  if(inningEnded || outs>=3){
+    outs=0;
+    clearBases();
+    document.getElementById('inning').value=parseInt(document.getElementById('inning').value||'1')+1;
+  }
+
+  balls=0; strikes=0; pitchNoPA=0; currentPitches=[]; paNo++; bipMode=false;
+  document.getElementById('runsScored').value=0; document.getElementById('inheritedScored').value=0;
+  document.getElementById('bipRunsScored').value=0; document.getElementById('bipInheritedScored').value=0;
+  document.getElementById('inherited').checked=false; document.getElementById('inningEnded').checked=false; document.getElementById('bipInningEnded').checked=false;
+  clearContact();
+  updateUI();
+}
+
+function pct(num,den){ if(!den) return '--'; return Math.round((num/den)*100)+'%'; }
+function activePAs(){ const f=document.getElementById('dashboardFilter').value; return f==='ALL'?paLog:paLog.filter(x=>x.pitcher===f); }
+function activePitches(){ const f=document.getElementById('dashboardFilter').value; return f==='ALL'?pitchLog:pitchLog.filter(x=>x.pitcher===f); }
+
+function metricSet(logs){
+  const pa=logs.length;
+  const lev=logs.filter(x=>x.reachedLeverage).length;
+  const lost=logs.filter(x=>x.lost32).length;
+  const secT=logs.reduce((a,x)=>a+x.secTotal,0), secS=logs.reduce((a,x)=>a+x.secStr,0);
+  const twoOpp=logs.reduce((a,x)=>a+(x.twoOutRispOpp||0),0);
+  const twoSuc=logs.reduce((a,x)=>a+(x.twoOutRispStranded||0),0);
+  const shOpp=logs.filter(x=>x.shutdownOpp).length, shSuc=logs.filter(x=>x.shutdownSuccess).length;
+  const contact=logs.filter(x=>x.isContactPA);
+
+  const f=document.getElementById('dashboardFilter').value;
+  const pitches = f==='ALL' ? pitchLog : pitchLog.filter(x=>x.pitcher===f);
+  const firstPitches = [];
+  const seenPA = new Set();
+  pitches.forEach(p=>{
+    const key=p.pitcher+'|'+p.paNo;
+    if(!seenPA.has(key)){
+      seenPA.add(key);
+      firstPitches.push(p);
+    }
+  });
+  const fps = pct(firstPitches.filter(p=>p.strike).length, firstPitches.length);
+  const csw = pct(pitches.filter(p=>['Called Strike','Swinging Strike'].includes(p.result)).length, pitches.length);
+  const whiff = pct(pitches.filter(p=>p.result==='Swinging Strike').length, pitches.length);
+  const usageCounts = {};
+  pitches.forEach(p=>{ usageCounts[p.pitchType]=(usageCounts[p.pitchType]||0)+1; });
+  let mostUsed='--';
+  let max=0;
+  Object.keys(usageCounts).forEach(k=>{ if(usageCounts[k]>max){ max=usageCounts[k]; mostUsed=k+' '+Math.round(max/pitches.length*100)+'%'; } });
+
+  return {
+    pa,
+    early:pct(logs.filter(x=>x.early).length,pa),
+    ahead:pct(logs.filter(x=>x.ahead).length,pa),
+    combo:pct(logs.filter(x=>x.early||x.ahead).length,pa),
+    lost:pct(lost,lev),
+    retention:lev?Math.round((1-lost/lev)*100)+'%':'--',
+    sec:pct(secS,secT),
+    strand2:pct(twoSuc,twoOpp),
+    shutdown:pct(shSuc,shOpp),
+    k:pct(logs.filter(x=>x.result==='K').length,pa),
+    bbhbp:pct(logs.filter(x=>['BB','HBP'].includes(x.result)).length,pa),
+    gb:pct(contact.filter(x=>x.contactType==='GB').length,contact.length),
+    hard:pct(contact.filter(x=>x.contactQuality==='Hard').length,contact.length),
+    exec:pct(logs.reduce((a,x)=>a+(x.execYes||0),0), logs.reduce((a,x)=>a+(x.execCharted||0),0)),
+    rhh:logs.filter(x=>x.batterHand==='RHH').length || '--',
+    lhh:logs.filter(x=>x.batterHand==='LHH').length || '--',
+    fps, csw, whiff, mostUsed
+  };
+}
+function updateKPIs(){
+  const m=metricSet(activePAs());
+  document.getElementById('kEarly').innerText=m.early;
+  document.getElementById('kAhead').innerText=m.ahead;
+  document.getElementById('kCombo').innerText=m.combo;
+  document.getElementById('kLost').innerText=m.lost;
+  document.getElementById('kRetention').innerText=m.retention;
+  document.getElementById('kSec').innerText=m.sec;
+  document.getElementById('kStrand2').innerText=m.strand2;
+  document.getElementById('kShutdown').innerText=m.shutdown;
+  document.getElementById('kK').innerText=m.k;
+  document.getElementById('kBB').innerText=m.bbhbp;
+  document.getElementById('kGB').innerText=m.gb;
+  document.getElementById('kHard').innerText=m.hard;
+  if(document.getElementById('kFPS')) document.getElementById('kFPS').innerText=m.fps;
+  if(document.getElementById('kCSW')) document.getElementById('kCSW').innerText=m.csw;
+  if(document.getElementById('kWhiff')) document.getElementById('kWhiff').innerText=m.whiff;
+  if(document.getElementById('kUsage')) document.getElementById('kUsage').innerText=m.mostUsed;
+  if(document.getElementById('kExec')) document.getElementById('kExec').innerText=m.exec;
+  if(document.getElementById('kRHH')) document.getElementById('kRHH').innerText=m.rhh;
+  if(document.getElementById('kLHH')) document.getElementById('kLHH').innerText=m.lhh;
+}
+function updatePitcherCards(){
+  const tb=document.querySelector('#pitcherCardTable tbody'); tb.innerHTML='';
+  const names=[...new Set(paLog.map(x=>x.pitcher))].sort();
+  names.forEach(name=>{
+    const m=metricSet(paLog.filter(x=>x.pitcher===name));
+    tb.insertAdjacentHTML('beforeend',`<tr><td>${name}</td><td>${m.pa}</td><td>${m.early}</td><td>${m.ahead}</td><td>${m.retention}</td><td>${m.sec}</td><td>${m.gb}</td><td>${m.hard}</td><td>${m.k}</td><td>${m.bbhbp}</td></tr>`);
+  });
+  updateUsageTable();
+}
+function updateUsageTable(){
+  const table=document.querySelector('#usageTable tbody');
+  if(!table) return;
+  table.innerHTML='';
+  const types=['FB','SNK','SL','CB','CH','CT','SPL','Other'];
+  const names=[...new Set(pitchLog.map(x=>x.pitcher))].sort();
+  names.forEach(name=>{
+    const pitches=pitchLog.filter(x=>x.pitcher===name);
+    const total=pitches.length;
+    const cells=types.map(t=>{
+      const n=pitches.filter(p=>p.pitchType===t).length;
+      return total ? `${n} (${Math.round(n/total*100)}%)` : '0';
+    });
+    table.insertAdjacentHTML('beforeend',`<tr><td>${name}</td>${cells.map(c=>`<td>${c}</td>`).join('')}<td>${total}</td></tr>`);
+  });
+}
+function updateTables(){
+  const pt=document.querySelector('#pitchTable tbody'); pt.innerHTML='';
+  activePitches().slice().reverse().forEach(p=>{ pt.insertAdjacentHTML('beforeend',`<tr><td>${p.pitchIndex}</td><td>${p.paNo}</td><td>${p.pitcher}</td><td>${p.batter}</td><td>${p.pitchType}</td><td>${p.pitchCall||''}</td><td>${p.executed||''}</td><td>${p.result}</td><td>${p.preCount}</td><td>${p.postCount}</td><td>${p.secondary?'Y':'N'}</td><td>${p.strike?'Y':'N'}</td></tr>`); });
+  const paT=document.querySelector('#paTable tbody'); paT.innerHTML='';
+  activePAs().slice().reverse().forEach(x=>{ paT.insertAdjacentHTML('beforeend',`<tr><td>${x.paNo}</td><td>${x.pitcher}</td><td>${x.batter}</td><td>${x.batterHand||''}</td><td>${x.startOuts}</td><td>${x.startBase}</td><td>${x.result}</td><td>${x.contactType||''}</td><td>${x.bipResult||''}</td><td>${x.contactQuality||''}</td><td>${x.pitchCalls||''}</td><td>${x.execCharted?`${x.execYes}/${x.execCharted}`:''}</td><td>${x.early?'Y':'N'}</td><td>${x.ahead?'Y':'N'}</td><td>${x.lost32?'Y':'N'}</td><td>${x.secStr}/${x.secTotal}</td><td>${x.twoOutRispOpp||0}</td><td>${x.twoOutRispStranded||0}</td><td>${x.runs}</td></tr>`); });
+}
+
+function csvEscape(v){ return '"' + String(v ?? '').replaceAll('"','""') + '"'; }
+function rowsToCSV(rows, fields){
+  return [fields.join(',')].concat(rows.map(r=>fields.map(k=>csvEscape(r[k])).join(','))).join('\n');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Google Sheets integration
+// Maps app data to the exact column headers in the PA_Data Google Sheet tab:
+// Date, Game Type, Inning, PA #, Pitcher, Batter, Start Outs, Start Base State,
+// PA Result, BIP Result, BIP Type, Contact Quality, Pitches, Early?, Ahead?,
+// Reached 0-2?, Reached 1-2?, Reached Leverage?, Lost 3-2?, Secondary Strikes,
+// Secondary Total, RISP?, RISP Runners, 2-Out RISP Opp, 2-Out RISP Stranded,
+// Runs Scored, Inherited?, Inherited Scored, Shutdown Opp?, Shutdown Success?, Row ID
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GOOGLE_SHEETS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQqbi3AJ67enK_TXRFPCAgazgpeim2r9_-AK-3PAltssa7sZbf4ZY7r6O6rq6YhVwV/exec";
+
+function buildPASheetRows() {
+  return paLog.map((x, idx) => ({
+    "Date":               x.date || '',
+    "Game Type":          x.gameType || '',
+    "Inning":             x.inning || '',
+    "PA #":               x.paNo,
+    "Pitcher":            x.pitcher || '',
+    "Batter":             x.batter || '',
+    "Start Outs":         x.startOuts,
+    "Start Base State":   x.startBase || '',
+    "PA Result":          x.result || '',
+    "BIP Result":         x.bipResult || '',
+    "BIP Type":           x.contactType || '',
+    "Contact Quality":    x.contactQuality || '',
+    "Pitches":            x.pitches || 0,
+    "Early?":             x.early ? 'Y' : 'N',
+    "Ahead?":             x.ahead ? 'Y' : 'N',
+    "Reached 0-2?":       x.reached02 ? 'Y' : 'N',
+    "Reached 1-2?":       x.reached12 ? 'Y' : 'N',
+    "Reached Leverage?":  x.reachedLeverage ? 'Y' : 'N',
+    "Lost 3-2?":          x.lost32 ? 'Y' : 'N',
+    "Secondary Strikes":  x.secStr || 0,
+    "Secondary Total":    x.secTotal || 0,
+    "RISP?":              x.risp ? 'Y' : 'N',
+    "RISP Runners":       x.rispRunners || 0,
+    "2-Out RISP Opp":     x.twoOutRispOpp || 0,
+    "2-Out RISP Stranded":x.twoOutRispStranded || 0,
+    "Runs Scored":        x.runs || 0,
+    "Inherited?":         x.inherited ? 'Y' : 'N',
+    "Inherited Scored":   x.inheritedScored || 0,
+    "Shutdown Opp?":      x.shutdownOpp ? 'Y' : 'N',
+    "Shutdown Success?":  x.shutdownSuccess ? 'Y' : 'N',
+    "Row ID":             `${x.date||'game'}-PA${x.paNo}`
+  }));
+}
+
+function buildPitchSheetRows() {
+  return pitchLog.map(p => ({
+    "Pitch #":      p.pitchIndex,
+    "PA #":         p.paNo,
+    "Date":         p.date || '',
+    "Game Type":    p.gameType || '',
+    "Inning":       p.inning || '',
+    "Pitcher":      p.pitcher || '',
+    "Batter":       p.batter || '',
+    "Batter Hand":  p.batterHand || '',
+    "Pitch # in PA":p.pitchNoPA,
+    "Pitch Type":   p.pitchType || '',
+    "Pitch Call":   p.pitchCall || '',
+    "Executed?":    p.executed || '',
+    "Result":       p.result || '',
+    "Pre-Count":    p.preCount || '',
+    "Post-Count":   p.postCount || '',
+    "Secondary?":   p.secondary ? 'Y' : 'N',
+    "Strike?":      p.strike ? 'Y' : 'N'
+  }));
+}
+
+async function saveGameToGoogleSheets(){
+  if(!pitchLog.length && !paLog.length){
+    alert('No game data to save yet.');
+    return;
+  }
+
+  const btn = [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Save Game'));
+  const origText = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'Saving...'; btn.disabled = true; }
+
+  try {
+    const payload = {
+      source: 'Aggies Pitch Charting App v7',
+      savedAt: new Date().toISOString(),
+      paRows: buildPASheetRows(),
+      pitchRows: buildPitchSheetRows()
+    };
+
+    // Send as URL-encoded form data — the most reliable way to POST to Google Apps Script
+    const formData = new URLSearchParams();
+    formData.append('data', JSON.stringify(payload));
+
+    const res = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString()
+    });
+
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let msg = '';
+    try { const json = JSON.parse(text); msg = json.message || JSON.stringify(json); } catch(e){ msg = text; }
+    alert('✅ Saved to Google Sheets!\n\nPA rows added: ' + paLog.length + '\nPitch rows added: ' + pitchLog.length + (msg ? '\n\nSheet response: ' + msg : ''));
+  } catch (err) {
+    alert('❌ Save failed.\n\nError: ' + err.message + '\n\nTroubleshooting:\n1. Make sure your Apps Script is deployed as "Anyone" access\n2. Check the Apps Script code matches the template below\n3. Use "Export Game Report CSV" as a backup\n\nSee the Apps Script template by opening the browser console (F12).');
+    console.log('%c--- GOOGLE APPS SCRIPT TEMPLATE ---', 'font-weight:bold;font-size:14px;color:#003087');
+    console.log(`Paste this into your Apps Script (script.google.com), then Deploy > New Deployment > Web App > Execute as Me > Anyone:
+
+function doPost(e) {
+  try {
+    var raw = e.parameter.data || e.postData.contents;
+    var payload = JSON.parse(raw);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // --- PA_Data tab ---
+    var paSheet = ss.getSheetByName('PA_Data') || ss.insertSheet('PA_Data');
+    var paRows = payload.paRows || [];
+    if (paRows.length > 0) {
+      if (paSheet.getLastRow() === 0) {
+        paSheet.appendRow(Object.keys(paRows[0]));
+      }
+      paRows.forEach(function(row) {
+        paSheet.appendRow(Object.values(row));
+      });
+    }
+
+    // --- Pitch_Data tab ---
+    var pitchSheet = ss.getSheetByName('Pitch_Data') || ss.insertSheet('Pitch_Data');
+    var pitchRows = payload.pitchRows || [];
+    if (pitchRows.length > 0) {
+      if (pitchSheet.getLastRow() === 0) {
+        pitchSheet.appendRow(Object.keys(pitchRows[0]));
+      }
+      pitchRows.forEach(function(row) {
+        pitchSheet.appendRow(Object.values(row));
+      });
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', message: 'Rows added: PA=' + paRows.length + ' Pitches=' + pitchRows.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput('Aggies Pitch Charting App Script is running.').setMimeType(ContentService.MimeType.TEXT);
+}`);
+  } finally {
+    if(btn){ btn.textContent = origText; btn.disabled = false; }
+  }
+}
+
+function exportGameReport(){
+  if(!pitchLog.length && !paLog.length){ alert('No data to export yet.'); return; }
+  const summaryRows = [...new Set(paLog.map(x=>x.pitcher))].sort().map(p=>{
+    const logs=paLog.filter(x=>x.pitcher===p), m=metricSet(logs);
+    return {rowType:'SUMMARY', pitcher:p, pa:m.pa, early:m.early, ahead:m.ahead, combo:m.combo, retention:m.retention, secondaryStrike:m.sec, strand2:m.strand2, gb:m.gb, hard:m.hard, firstPitchStrike:m.fps, csw:m.csw, whiff:m.whiff, mostUsedPitch:m.mostUsed, execution:m.exec, k:m.k, bbhbp:m.bbhbp};
+  });
+
+  // PA section uses the exact PA_Data CSV column headers
+  const paSheetRows = buildPASheetRows();
+  const paHeaders = Object.keys(paSheetRows[0] || {});
+
+  const pitchSheetRows = buildPitchSheetRows();
+  const pitchHeaders = Object.keys(pitchSheetRows[0] || {});
+
+  const summaryFields=['rowType','pitcher','pa','early','ahead','combo','retention','secondaryStrike','strand2','gb','hard','firstPitchStrike','csw','whiff','mostUsedPitch','execution','k','bbhbp'];
+
+  const toCSVBlock = (rows, headers) =>
+    [headers.join(',')].concat(rows.map(r=>headers.map(k=>csvEscape(r[k])).join(','))).join('\n');
+
+  const content = [
+    'SECTION: SUMMARY',
+    rowsToCSV(summaryRows, summaryFields),
+    '',
+    'SECTION: PA_DATA',
+    toCSVBlock(paSheetRows, paHeaders),
+    '',
+    'SECTION: PITCH_DATA',
+    toCSVBlock(pitchSheetRows, pitchHeaders)
+  ].join('\n');
+
+  const blob=new Blob([content],{type:'text/csv'});
+  const a=document.createElement('a');
+  const d=document.getElementById('date').value || 'game';
+  a.href=URL.createObjectURL(blob);
+  a.download='Aggies_Game_Report_'+d+'.csv';
+  a.click();
+}
+
+function resetGame(){
+  if(confirm('Clear all game data?')){
+    balls=0;strikes=0;outs=0;paNo=1;pitchNoPA=0;bipMode=false;
+    bases={first:false,second:false,third:false};currentPitches=[];pitchLog=[];paLog=[];
+    clearContact();updateUI();
+  }
+}
+updateUI();
+</script>
+</body>
+</html>
